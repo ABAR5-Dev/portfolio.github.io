@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#090C14">
+<title>ABAR5 Music Player</title>
+<meta name="description" content="ABAR5 Music Player — a glass music console with synced group listening, DJ mode, and a live queue.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#090C14;
+    --violet:#7C5CFF;
+    --teal:#2DD4BF;
+    --magenta:#FF4FA3;
+    --green:#39FF88;
+    --text-primary:#F5F7FF;
+    --text-muted:#8B92B0;
+    --glass-fill:rgba(255,255,255,0.06);
+    --glass-fill-strong:rgba(255,255,255,0.10);
+    --glass-border:rgba(255,255,255,0.14);
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'Plus Jakarta Sans',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+    --radius-lg:28px;
+    --radius-md:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font-body);
+    color:var(--text-primary);
+    background:var(--bg-void);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:var(--font-display);margin:0;}
+  .font-mono{font-family:var(--font-mono);}
+  .muted{color:var(--text-muted);}
+  .small{font-size:0.85rem;}
+  a{color:inherit;}
+  button,input{font-family:inherit;}
+
+  a:focus-visible, button:focus-visible, input:focus-visible{
+    outline:2px solid var(--teal); outline-offset:3px; border-radius:4px;
+  }
+
+  /* ---------- background aurora ---------- */
+  .aurora{position:fixed; inset:0; overflow:hidden; background:var(--bg-void);}
+  .blob{position:absolute; border-radius:50%; filter:blur(90px); opacity:0.55; will-change:transform;}
+  .blob-a{width:480px;height:480px;background:var(--violet);top:-140px;left:-120px;animation:drift1 22s ease-in-out infinite alternate;}
+  .blob-b{width:420px;height:420px;background:var(--teal);bottom:-150px;right:-90px;animation:drift2 26s ease-in-out infinite alternate;}
+  .blob-c{width:380px;height:380px;background:var(--magenta);top:38%;left:55%;animation:drift3 30s ease-in-out infinite alternate;}
+  @keyframes drift1{to{transform:translate(60px,80px) scale(1.1);}}
+  @keyframes drift2{to{transform:translate(-50px,-60px) scale(1.15);}}
+  @keyframes drift3{to{transform:translate(-70px,40px) scale(0.95);}}
+  @media (prefers-reduced-motion: reduce){
+    .blob{animation:none;}
+  }
+
+  /* ---------- glass utility ---------- */
+  .glass{
+    background:var(--glass-fill);
+    border:1px solid var(--glass-border);
+    border-radius:var(--radius-lg);
+    backdrop-filter:blur(24px) saturate(180%);
+    -webkit-backdrop-filter:blur(24px) saturate(180%);
+    box-shadow:0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  /* ---------- nav ---------- */
+  .topnav{
+    position:sticky; top:14px; margin:14px auto 0; max-width:920px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 22px; z-index:10; border-radius:999px;
+  }
+  .brand{font-family:var(--font-display); font-weight:700; text-decoration:none; letter-spacing:0.5px;}
+  .nav-links{display:flex; gap:18px; overflow-x:auto; scrollbar-width:none;}
+  .nav-links::-webkit-scrollbar{display:none;}
+  .nav-links a{color:var(--text-muted); text-decoration:none; font-size:0.88rem; font-weight:500; white-space:nowrap; transition:color .2s;}
+  .nav-links a:hover{color:var(--text-primary);}
+  .nav-links a.active{color:var(--teal);}
+
+  /* ---------- layout ---------- */
+  .page{max-width:920px; margin:0 auto; padding:40px 20px 90px;}
+  .hero{text-align:center; margin-bottom:34px;}
+  .eyebrow{color:var(--teal); font-size:0.82rem; letter-spacing:1px; margin-bottom:12px;}
+  .cursor{animation:blink 1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .hero h1{font-size:clamp(2.1rem,5vw,3.1rem); font-weight:700;}
+  .hero h1 .accent{display:block; background:linear-gradient(90deg,var(--violet),var(--teal) 60%,var(--magenta)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .tagline{color:var(--text-muted); margin-top:12px; font-size:1.02rem;}
+
+  /* ---------- player console ---------- */
+  .console{padding:36px 28px; display:flex; flex-direction:column; align-items:center; gap:22px; margin-bottom:22px;}
+
+  .disc{
+    width:168px; height:168px; border-radius:50%; position:relative;
+    background:conic-gradient(from 0deg,var(--violet),var(--teal),var(--magenta),var(--violet));
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid rgba(255,255,255,0.25);
+    box-shadow:0 0 60px rgba(124,92,255,0.35), inset 0 0 30px rgba(255,255,255,0.08);
+    animation:spin 9s linear infinite paused;
+  }
+  .disc.playing{animation-play-state:running;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .disc-sheen{position:absolute; inset:8px; border-radius:50%; background:radial-gradient(circle at 32% 28%, rgba(255,255,255,0.55), transparent 55%); pointer-events:none;}
+  .disc-center{width:52px; height:52px; border-radius:50%; background:var(--bg-void); border:1px solid rgba(255,255,255,0.2); z-index:2;}
+
+  .visualizer{display:flex; align-items:flex-end; justify-content:center; gap:3px; height:40px; width:100%; max-width:360px;}
+  .vbar{width:4px; min-height:3px; border-radius:3px; background:linear-gradient(to top,var(--violet),var(--teal)); transition:height .07s ease;}
+
+  .track-info{text-align:center;}
+  .now-label{color:var(--teal); font-size:0.7rem; letter-spacing:2px; margin-bottom:6px;}
+  .track-info h2{font-size:1.25rem; font-weight:700; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  #trackMeta{margin-top:4px;}
+
+  .seek-row{display:flex; align-items:center; gap:10px; width:100%; max-width:420px;}
+  .time{font-size:0.72rem; color:var(--text-muted); width:36px; flex-shrink:0;}
+  .seek{flex:1;}
+
+  input[type="range"]{-webkit-appearance:none; appearance:none; width:100%; height:4px; margin:0; padding:0; border-radius:2px; background:rgba(255,255,255,0.15); outline:none; vertical-align:middle;}
+  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--text-primary); cursor:pointer; box-shadow:0 0 8px rgba(255,255,255,0.5); margin-top:-5px;}
+  input[type="range"]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; background:var(--text-primary); border:none; cursor:pointer;}
+  input[type="range"]::-moz-range-track{height:4px; border-radius:2px; background:rgba(255,255,255,0.15); border:none;}
+
+  .transport{display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:center;}
+  .icon-btn{width:44px; height:44px; border-radius:50%; border:1px solid var(--glass-border); background:rgba(255,255,255,0.06); color:var(--text-primary); font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s;}
+  .icon-btn:hover{background:rgba(255,255,255,0.14);}
+  .icon-btn.play{width:56px; height:56px; font-size:1.25rem; background:linear-gradient(135deg,var(--violet),var(--teal)); color:#06070C; border:none;}
+  .volume-wrap{display:flex; align-items:center; gap:8px; margin-left:6px;}
+  .volume-wrap input[type="range"]{width:90px;}
+
+  /* ---------- panels grid ---------- */
+  .grid-two{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width:720px){.grid-two{grid-template-columns:1fr;}}
+  .panel{padding:24px;}
+  .panel h3{font-size:1.05rem; margin-bottom:4px;}
+
+  .btn{font-weight:600; font-size:0.88rem; padding:10px 18px; border-radius:999px; border:1px solid transparent; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:linear-gradient(90deg,var(--violet),var(--teal)); color:#06070C;}
+  .btn-primary:hover{box-shadow:0 6px 20px rgba(124,92,255,0.4);}
+  .btn-ghost{background:var(--glass-fill-strong); border-color:var(--glass-border); color:var(--text-primary);}
+  .btn-ghost:hover{background:rgba(255,255,255,0.14);}
+  .btn.small{padding:7px 14px; font-size:0.78rem;}
+  .btn:disabled{opacity:0.4; cursor:not-allowed;}
+
+  .text-input,.code-input{background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:12px; padding:10px 14px; color:var(--text-primary); font-size:0.88rem; outline:none; transition:border-color .2s; width:100%;}
+  .text-input:focus,.code-input:focus{border-color:var(--teal);}
+  .code-input{width:100px; text-transform:uppercase; letter-spacing:3px; text-align:center;}
+
+  .add-row{display:flex; gap:8px; margin:14px 0 10px;}
+  .add-row .text-input{flex:1; min-width:0;}
+  .upload-row{display:block; margin-bottom:6px;}
+
+  .room-row{display:flex; flex-direction:column; gap:12px; margin-top:16px;}
+  .join-row{display:flex; gap:8px;}
+
+  .queue-list{list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; max-height:230px; overflow-y:auto;}
+  .queue-item{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,0.04); border:1px solid transparent; cursor:pointer; transition:background .15s, border-color .15s;}
+  .queue-item:hover{background:rgba(255,255,255,0.08);}
+  .queue-item.playing{border-color:var(--teal); background:rgba(45,212,191,0.08);}
+  .qtitle{flex:1; font-size:0.86rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .qmeta{font-size:0.7rem; color:var(--text-muted); font-family:var(--font-mono); flex-shrink:0;}
+  .qremove{background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1rem; line-height:1; padding:4px; flex-shrink:0;}
+  .qremove:hover{color:var(--magenta);}
+  .empty-state{padding:18px 8px; text-align:center; list-style:none;}
+
+  .mode-toggle{display:flex; gap:6px; background:rgba(255,255,255,0.05); padding:4px; border-radius:999px; margin:14px 0;}
+  .mode-btn{flex:1; background:none; border:none; color:var(--text-muted); padding:8px 10px; border-radius:999px; font-size:0.78rem; font-weight:600; cursor:pointer; transition:all .2s;}
+  .mode-btn.active{background:linear-gradient(90deg,var(--violet),var(--teal)); color:#06070C;}
+  .mode-btn:disabled{cursor:not-allowed; opacity:.5;}
+
+  .room-code{font-size:1.15rem; letter-spacing:4px;}
+  .hidden{display:none !important;}
+  .warning{color:#FFC168; margin-top:14px; line-height:1.45;}
+
+  .toast{position:fixed; bottom:24px; left:50%; transform:translate(-50%,20px); background:rgba(18,20,32,0.92); border:1px solid var(--glass-border); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); padding:12px 20px; border-radius:14px; font-size:0.85rem; opacity:0; pointer-events:none; transition:all .3s ease; max-width:88vw; text-align:center; z-index:50;}
+  .toast.show{opacity:1; transform:translate(-50%,0);}
+
+  @media (max-width:600px){
+    .topnav{flex-wrap:wrap; gap:10px; border-radius:24px;}
+    .console{padding:26px 18px;}
+    .disc{width:140px; height:140px;}
+    .track-info h2{max-width:260px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="aurora" aria-hidden="true">
+  <span class="blob blob-a"></span>
+  <span class="blob blob-b"></span>
+  <span class="blob blob-c"></span>
+</div>
+
+<nav class="topnav glass">
+  <a href="/#home" class="brand">ABAR5</a>
+  <div class="nav-links">
+    <a href="/#home">Home</a>
+    <a href="/#about">About</a>
+    <a href="/#skills">Skills</a>
+    <a href="/#projects">Projects</a>
+    <a href="/#contact">Contact</a>
+    <a href="/music" class="active">Music</a>
+  </div>
+</nav>
+
+<main class="page">
+
+  <header class="hero">
+    <p class="eyebrow font-mono">abar5@dev:~/music$ <span class="cursor">_</span></p>
+    <h1>ABAR5 <span class="accent">Music Player</span></h1>
+    <p class="tagline">A glass console for solo listening — or a synced session with friends.</p>
+  </header>
+
+  <section class="console glass" aria-label="Player">
+    <div class="disc" id="disc">
+      <div class="disc-sheen"></div>
+      <div class="disc-center"></div>
+    </div>
+
+    <div class="visualizer" id="visualizer" aria-hidden="true"></div>
+
+    <div class="track-info">
+      <p class="now-label font-mono">NOW PLAYING</p>
+      <h2 id="trackTitle">No track loaded</h2>
+      <p id="trackMeta" class="muted small">Add a track below to get started</p>
+    </div>
+
+    <div class="seek-row">
+      <span id="curTime" class="font-mono time">0:00</span>
+      <input type="range" id="seek" class="seek" min="0" max="100" value="0" step="0.1" aria-label="Seek">
+      <span id="durTime" class="font-mono time">0:00</span>
+    </div>
+
+    <div class="transport">
+      <button id="prevBtn" class="icon-btn" type="button" aria-label="Previous track">⏮</button>
+      <button id="playBtn" class="icon-btn play" type="button" aria-label="Play">▶</button>
+      <button id="nextBtn" class="icon-btn" type="button" aria-label="Next track">⏭</button>
+      <div class="volume-wrap">
+        <span aria-hidden="true">🔊</span>
+        <input type="range" id="volume" min="0" max="100" value="80" aria-label="Loudness">
+      </div>
+    </div>
+  </section>
+
+  <section class="grid-two">
+
+    <div class="panel glass" aria-label="Sync room">
+      <h3>Sync Room</h3>
+      <p class="muted small">Play the same track, in sync, on every connected device.</p>
+
+      <div id="roomJoinRow" class="room-row">
+        <button id="createRoomBtn" class="btn btn-primary" type="button">Create room</button>
+        <div class="join-row">
+          <input id="joinCodeInput" class="code-input font-mono" maxlength="5" placeholder="CODE" aria-label="Room code">
+          <button id="joinRoomBtn" class="btn btn-ghost" type="button">Join</button>
+        </div>
+      </div>
+
+      <div id="roomActiveRow" class="room-active hidden">
+        <p class="room-code font-mono">ROOM <span id="roomCodeText">-----</span></p>
+        <p class="muted small" id="memberCount">● 1 connected</p>
+        <div class="mode-toggle" id="modeToggle" role="group" aria-label="Room control mode">
+          <button class="mode-btn active" type="button" data-mode="dj">DJ Mode</button>
+          <button class="mode-btn" type="button" data-mode="all">All Mode</button>
+        </div>
+        <p class="muted small" id="djStatus"></p>
+        <button id="leaveRoomBtn" class="btn btn-ghost small" type="button">Leave room</button>
+      </div>
+
+      <p id="firebaseWarning" class="warning small hidden">
+        ⚠️ Sync isn't connected yet — add your Firebase config in the script to enable cross-device rooms. Everything else on this page still works.
+      </p>
+    </div>
+
+    <div class="panel glass" aria-label="Queue">
+      <h3>Queue</h3>
+      <div class="add-row">
+        <input id="urlInput" type="url" placeholder="Paste an audio file URL (.mp3, .wav…)" class="text-input">
+        <button id="addUrlBtn" class="btn btn-primary" type="button">Add</button>
+      </div>
+      <label class="upload-row">
+        <input type="file" id="fileInput" accept="audio/*" hidden>
+        <span class="btn btn-ghost small">📁 Upload local file (solo only)</span>
+      </label>
+      <ul id="queueList" class="queue-list">
+        <li class="empty-state muted small">Your queue is empty. Add a track above.</li>
+      </ul>
+    </div>
+
+  </section>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import {
+  getDatabase, ref, set, update, get, onValue, onDisconnect,
+  serverTimestamp, remove
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+
+/* =========================================================
+   CONFIG — paste your own Firebase project details below to
+   turn on cross-device sync. Everything else on this page
+   (player, queue, volume, local uploads) works without it.
+
+   How to get these values (~3 minutes, free):
+   1. https://console.firebase.google.com → Add project
+   2. Build → Realtime Database → Create Database
+   3. Project settings (gear icon) → General → Add app → Web
+   4. Copy the config object it gives you into here
+   5. In Realtime Database → Rules, paste:
+      {
+        "rules": {
+          "rooms": { "$room": { ".read": true, ".write": true } }
+        }
+      }
+      (this keeps it simple/keyless for a friend-group sync toy —
+      anyone with a room code can read/write that room only)
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+};
+
+const SYNC_ENABLED = firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
+let db = null;
+if (SYNC_ENABLED) {
+  try {
+    db = getDatabase(initializeApp(firebaseConfig));
+  } catch (e) {
+    console.error("Firebase init failed:", e);
+  }
+}
+
+/* ---------------- state ---------------- */
+const audio = new Audio();
+let queue = [];            // [{id, url, title, addedBy}]
+let currentId = null;
+let isPlaying = false;
+
+let roomCode = null;
+let roomMode = "dj";       // "dj" | "all"
+let djId = null;
+const deviceId = crypto.randomUUID();
+const guestName = "Guest-" + Math.floor(1000 + Math.random() * 9000);
+
+let suppressBroadcast = false;
+let presenceInterval = null;
+
+/* ---------------- DOM ---------------- */
+const $ = (id) => document.getElementById(id);
+const discEl = $("disc");
+const visualizerEl = $("visualizer");
+const trackTitleEl = $("trackTitle");
+const trackMetaEl = $("trackMeta");
+const seekEl = $("seek");
+const curTimeEl = $("curTime");
+const durTimeEl = $("durTime");
+const playBtn = $("playBtn");
+const prevBtn = $("prevBtn");
+const nextBtn = $("nextBtn");
+const volumeEl = $("volume");
+const urlInput = $("urlInput");
+const addUrlBtn = $("addUrlBtn");
+const fileInput = $("fileInput");
+const queueListEl = $("queueList");
+const createRoomBtn = $("createRoomBtn");
+const joinRoomBtn = $("joinRoomBtn");
+const joinCodeInput = $("joinCodeInput");
+const leaveRoomBtn = $("leaveRoomBtn");
+const roomJoinRow = $("roomJoinRow");
+const roomActiveRow = $("roomActiveRow");
+const roomCodeText = $("roomCodeText");
+const memberCountEl = $("memberCount");
+const modeToggleEl = $("modeToggle");
+const djStatusEl = $("djStatus");
+const firebaseWarning = $("firebaseWarning");
+const toastEl = $("toast");
+
+if (!SYNC_ENABLED) firebaseWarning.classList.remove("hidden");
+
+/* ---------------- toast ---------------- */
+let toastTimer = null;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2600);
+}
+
+/* ---------------- visualizer ---------------- */
+const BAR_COUNT = 28;
+const bars = [];
+for (let i = 0; i < BAR_COUNT; i++) {
+  const b = document.createElement("div");
+  b.className = "vbar";
+  visualizerEl.appendChild(b);
+  bars.push(b);
+}
+
+let audioCtx = null;
+let analyser = null;
+
+// Note: audio.crossOrigin is deliberately left unset. Setting it would
+// require every track's host to send CORS headers or playback breaks
+// entirely. Without it, playback always works; the only tradeoff is
+// that tracks from non-CORS hosts show a calmer (non-reactive) bar
+// animation instead of true frequency data.
+function ensureAudioGraph() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    const source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+  } catch (e) {
+    console.error("Audio graph error:", e);
+  }
+}
+
+function renderVisualizer() {
+  if (analyser && isPlaying) {
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+    bars.forEach((bar, i) => {
+      const v = data[i % data.length] || 0;
+      bar.style.height = Math.max(3, (v / 255) * 40) + "px";
+    });
+  } else {
+    const t = Date.now() / 600;
+    bars.forEach((bar, i) => {
+      bar.style.height = (4 + Math.sin(t + i) * 2 + 2) + "px";
+    });
+  }
+  requestAnimationFrame(renderVisualizer);
+}
+renderVisualizer();
+
+/* ---------------- queue rendering ---------------- */
+function renderQueue() {
+  queueListEl.innerHTML = "";
+  if (queue.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty-state muted small";
+    li.textContent = "Your queue is empty. Add a track above.";
+    queueListEl.appendChild(li);
+    return;
+  }
+  queue.forEach((track) => {
+    const li = document.createElement("li");
+    li.className = "queue-item" + (track.id === currentId ? " playing" : "");
+
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "qtitle";
+    titleSpan.textContent = track.title;
+
+    const metaSpan = document.createElement("span");
+    metaSpan.className = "qmeta";
+    metaSpan.textContent = track.addedBy || "";
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "qremove";
+    removeBtn.type = "button";
+    removeBtn.setAttribute("aria-label", "Remove track");
+    removeBtn.textContent = "✕";
+
+    li.append(titleSpan, metaSpan, removeBtn);
+    li.addEventListener("click", () => playTrackById(track.id, true));
+    removeBtn.addEventListener("click", (e) => { e.stopPropagation(); removeTrack(track.id); });
+    queueListEl.appendChild(li);
+  });
+}
+
+/* ---------------- playback core ---------------- */
+function canControl() {
+  if (!roomCode) return true;               // solo mode: always allowed
+  if (roomMode === "all") return true;       // all mode: everyone allowed
+  return deviceId === djId;                  // dj mode: dj only
+}
+
+function loadTrack(track, autoplay) {
+  audio.src = track.url;
+  currentId = track.id;
+  trackTitleEl.textContent = track.title;
+  trackMetaEl.textContent = track.addedBy ? `Added by ${track.addedBy}` : "";
+  renderQueue();
+  if (autoplay) {
+    ensureAudioGraph();
+    if (audioCtx) audioCtx.resume();
+    audio.play().catch((err) => toast("Couldn't play that track: " + err.message));
+  }
+}
+
+function playTrackById(id, userInitiated) {
+  const track = queue.find((t) => t.id === id);
+  if (!track) return;
+  if (userInitiated && !canControl()) { toast("🎧 Only the DJ can change tracks right now"); return; }
+  loadTrack(track, true);
+  if (userInitiated) broadcastState();
+}
+
+function togglePlay(userInitiated) {
+  if (userInitiated && !canControl()) { toast("🎧 Only the DJ can control playback right now"); return; }
+  if (!audio.src) {
+    if (queue.length > 0) playTrackById(queue[0].id, userInitiated);
+    return;
+  }
+  ensureAudioGraph();
+  if (audioCtx) audioCtx.resume();
+  if (audio.paused) audio.play().catch((err) => toast("Playback error: " + err.message));
+  else audio.pause();
+  if (userInitiated) broadcastState();
+}
+
+function nextTrack(userInitiated) {
+  if (userInitiated && !canControl()) { toast("🎧 Only the DJ can skip tracks"); return; }
+  if (queue.length === 0) return;
+  const idx = queue.findIndex((t) => t.id === currentId);
+  loadTrack(queue[(idx + 1) % queue.length], true);
+  if (userInitiated) broadcastState();
+}
+
+function prevTrack(userInitiated) {
+  if (userInitiated && !canControl()) { toast("🎧 Only the DJ can skip tracks"); return; }
+  if (queue.length === 0) return;
+  const idx = queue.findIndex((t) => t.id === currentId);
+  loadTrack(queue[(idx - 1 + queue.length) % queue.length], true);
+  if (userInitiated) broadcastState();
+}
+
+function removeTrack(id) {
+  queue = queue.filter((t) => t.id !== id);
+  renderQueue();
+  if (roomCode && db) remove(ref(db, `rooms/${roomCode}/queue/${id}`));
+}
+
+/* ---------------- audio element events ---------------- */
+audio.addEventListener("play", () => { isPlaying = true; playBtn.textContent = "⏸"; discEl.classList.add("playing"); });
+audio.addEventListener("pause", () => { isPlaying = false; playBtn.textContent = "▶"; discEl.classList.remove("playing"); });
+audio.addEventListener("timeupdate", () => {
+  if (audio.duration) {
+    seekEl.value = (audio.currentTime / audio.duration) * 100;
+    curTimeEl.textContent = formatTime(audio.currentTime);
+    durTimeEl.textContent = formatTime(audio.duration);
+  }
+});
+audio.addEventListener("ended", () => nextTrack(canControl()));
+audio.addEventListener("error", () => toast("⚠️ Couldn't load that track — check the URL"));
+
+function formatTime(s) {
+  if (!isFinite(s)) return "0:00";
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60).toString().padStart(2, "0");
+  return `${m}:${sec}`;
+}
+
+/* ---------------- UI wiring ---------------- */
+playBtn.addEventListener("click", () => togglePlay(true));
+nextBtn.addEventListener("click", () => nextTrack(true));
+prevBtn.addEventListener("click", () => prevTrack(true));
+
+seekEl.addEventListener("input", () => {
+  if (!audio.duration) return;
+  audio.currentTime = (seekEl.value / 100) * audio.duration;
+});
+seekEl.addEventListener("change", () => {
+  if (!canControl()) { toast("🎧 Only the DJ can seek right now"); return; }
+  broadcastState();
+});
+
+audio.volume = 0.8;
+volumeEl.addEventListener("input", () => { audio.volume = volumeEl.value / 100; }); // local only — never synced
+
+addUrlBtn.addEventListener("click", addTrackFromUrl);
+urlInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addTrackFromUrl(); });
+
+function addTrackFromUrl() {
+  const url = urlInput.value.trim();
+  if (!url) return;
+  let title;
+  try {
+    const u = new URL(url);
+    title = decodeURIComponent(u.pathname.split("/").pop() || url);
+  } catch {
+    toast("That doesn't look like a valid URL");
+    return;
+  }
+  const track = { id: cryptoId(), url, title: title.replace(/\.[a-zA-Z0-9]+$/, ""), addedBy: guestName };
+  queue.push(track);
+  renderQueue();
+  urlInput.value = "";
+  if (roomCode && db) set(ref(db, `rooms/${roomCode}/queue/${track.id}`), track);
+  if (queue.length === 1) playTrackById(track.id, canControl());
+}
+
+fileInput.addEventListener("change", () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const track = { id: cryptoId(), url, title: file.name.replace(/\.[a-zA-Z0-9]+$/, ""), addedBy: guestName + " (local)" };
+  queue.push(track);
+  renderQueue();
+  toast("Added locally — this file only plays on this device");
+  if (queue.length === 1) playTrackById(track.id, true);
+});
+
+function cryptoId() {
+  return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+}
+
+/* ---------------- room / sync ---------------- */
+function generateRoomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+joinCodeInput.addEventListener("input", () => {
+  joinCodeInput.value = joinCodeInput.value.toUpperCase();
+});
+
+createRoomBtn.addEventListener("click", async () => {
+  if (!SYNC_ENABLED) { toast("Add your Firebase config first to enable rooms"); return; }
+  const code = generateRoomCode();
+  djId = deviceId;
+  roomMode = "dj";
+  try {
+    await set(ref(db, `rooms/${code}`), {
+      mode: "dj",
+      djId: deviceId,
+      createdAt: serverTimestamp(),
+      playback: { trackId: null, isPlaying: false, position: 0, updatedAt: Date.now() },
+    });
+    for (const t of queue) await set(ref(db, `rooms/${code}/queue/${t.id}`), t);
+    enterRoom(code);
+  } catch (e) {
+    toast("Couldn't create room — check your Firebase config/rules");
+  }
+});
+
+joinRoomBtn.addEventListener("click", async () => {
+  if (!SYNC_ENABLED) { toast("Add your Firebase config first to enable rooms"); return; }
+  const code = joinCodeInput.value.trim().toUpperCase();
+  if (code.length < 4) { toast("Enter a valid room code"); return; }
+  try {
+    const snap = await get(ref(db, `rooms/${code}`));
+    if (!snap.exists()) { toast("Room not found"); return; }
+    enterRoom(code);
+  } catch (e) {
+    toast("Couldn't join room — check your Firebase config/rules");
+  }
+});
+
+leaveRoomBtn.addEventListener("click", leaveRoom);
+
+modeToggleEl.querySelectorAll(".mode-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (!roomCode || deviceId !== djId) { toast("Only the DJ can change the mode"); return; }
+    update(ref(db, `rooms/${roomCode}`), { mode: btn.dataset.mode });
+  });
+});
+
+let roomUnsub = null;
+
+function enterRoom(code) {
+  roomCode = code;
+  roomCodeText.textContent = code;
+  roomJoinRow.classList.add("hidden");
+  roomActiveRow.classList.remove("hidden");
+
+  const memberRef = ref(db, `rooms/${code}/members/${deviceId}`);
+  set(memberRef, { name: guestName, lastSeen: serverTimestamp() });
+  onDisconnect(memberRef).remove();
+  presenceInterval = setInterval(() => {
+    set(memberRef, { name: guestName, lastSeen: serverTimestamp() });
+  }, 20000);
+
+  roomUnsub = onValue(ref(db, `rooms/${code}`), (snap) => {
+    const data = snap.val();
+    if (!data) { toast("Room closed"); leaveRoom(); return; }
+    applyRemoteRoom(data);
+  });
+
+  toast(`Joined room ${code}`);
+}
+
+function leaveRoom() {
+  if (!roomCode) return;
+  if (db) remove(ref(db, `rooms/${roomCode}/members/${deviceId}`));
+  if (roomUnsub) roomUnsub();
+  clearInterval(presenceInterval);
+  roomCode = null;
+  djId = null;
+  roomMode = "dj";
+  roomJoinRow.classList.remove("hidden");
+  roomActiveRow.classList.add("hidden");
+}
+
+function applyRemoteRoom(data) {
+  roomMode = data.mode || "dj";
+  djId = data.djId;
+
+  modeToggleEl.querySelectorAll(".mode-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.mode === roomMode);
+    btn.disabled = deviceId !== djId;
+  });
+  djStatusEl.textContent = deviceId === djId
+    ? "You're the DJ 🎧"
+    : (roomMode === "dj" ? "Listening along — DJ is in control" : "All Mode — everyone can control playback");
+
+  const members = data.members || {};
+  memberCountEl.textContent = `● ${Object.keys(members).length} connected`;
+
+  queue = Object.values(data.queue || {});
+  renderQueue();
+
+  const pb = data.playback;
+  if (pb && pb.trackId) {
+    const track = queue.find((t) => t.id === pb.trackId);
+    if (track && track.id !== currentId) {
+      suppressBroadcast = true;
+      loadTrack(track, false);
+      suppressBroadcast = false;
+    }
+    if (track) {
+      const elapsed = pb.updatedAt ? (Date.now() - pb.updatedAt) / 1000 : 0;
+      const targetTime = pb.isPlaying ? pb.position + Math.max(0, elapsed) : pb.position;
+      if (Math.abs(audio.currentTime - targetTime) > 1.5 && isFinite(targetTime)) {
+        audio.currentTime = targetTime;
+      }
+      suppressBroadcast = true;
+      if (pb.isPlaying && audio.paused) {
+        ensureAudioGraph();
+        if (audioCtx) audioCtx.resume();
+        audio.play().catch(() => toast("Tap ▶ to join the sync — your browser blocks auto-play"));
+      }
+      if (!pb.isPlaying && !audio.paused) audio.pause();
+      suppressBroadcast = false;
+    }
+  }
+}
+
+function broadcastState() {
+  if (!roomCode || !db || suppressBroadcast) return;
+  update(ref(db, `rooms/${roomCode}/playback`), {
+    trackId: currentId,
+    isPlaying: !audio.paused,
+    position: audio.currentTime,
+    updatedAt: Date.now(),
+  });
+}
+// periodic resync so late-joining / drifted clients stay tight — only the
+// device(s) allowed to control playback broadcast their position
+setInterval(() => { if (roomCode && canControl() && isPlaying) broadcastState(); }, 5000);
+
+renderQueue();
+</script>
+</body>
+</html>
