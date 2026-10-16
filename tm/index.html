@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Day Sound Board</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @keyframes purple-pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
+            50% { box-shadow: 0 0 35px rgba(168, 85, 247, 0.8); }
+        }
+        .card-active {
+            animation: purple-pulse 2s infinite ease-in-out;
+            border-color: #a855f7 !important;
+            background-color: #f3e8ff !important;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 min-h-full text-slate-100 flex flex-col justify-between">
+
+    <!-- Global Top Controls & Status Header -->
+    <header class="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-purple-800/40 px-4 py-3 shadow-lg">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-purple-600 to-indigo-500 text-white p-2.5 rounded-2xl shadow-md">
+                    <i class="fa-solid fa-graduation-cap text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white flex items-center gap-2">
+                        Teacher Day Sound Board
+                    </h1>
+                    <p id="globalStatus" class="text-xs text-purple-300 font-medium">Ready to play sound tracks</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <button onclick="stopAllAudio()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95">
+                    <i class="fa-solid fa-stop text-sm"></i> Stop All Audio
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Section -->
+    <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-grow">
+        
+        <!-- Purple Hero Banner -->
+        <div class="bg-gradient-to-r from-purple-900/80 via-purple-800/60 to-indigo-900/80 border border-purple-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl mb-8 relative overflow-hidden backdrop-blur-sm">
+            <div class="absolute -right-6 -bottom-6 opacity-10 text-9xl text-purple-200">
+                <i class="fa-solid fa-music"></i>
+            </div>
+            <div class="relative z-10 max-w-2xl">
+                <span class="bg-purple-500/20 text-purple-300 text-xs uppercase tracking-wider font-bold px-3 py-1 rounded-full mb-3 inline-block border border-purple-500/30">
+                    Happy Teacher's Day
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Sleek & Simple Sound Board</h2>
+                <p class="text-purple-200 text-sm leading-relaxed">
+                    Click any song to play in a continuous loop until stopped. Directly download any track for offline use during events!
+                </p>
+            </div>
+        </div>
+
+        <!-- Dynamic Grid of Song Cards -->
+        <div class="mb-4 flex justify-between items-center">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-purple-300 flex items-center gap-2">
+                <i class="fa-solid fa-list-ul text-purple-400"></i> Tracklist
+            </h3>
+            <span id="trackCount" class="text-xs bg-purple-900/60 text-purple-300 border border-purple-700/50 px-2.5 py-1 rounded-full font-mono">0 tracks</span>
+        </div>
+
+        <div id="songsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <!-- Cards injected via JavaScript -->
+        </div>
+
+        <!-- Instructions Box -->
+        <div class="mt-12 bg-slate-900/80 border border-purple-800/40 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+            <h4 class="text-base font-bold text-purple-300 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up text-purple-400"></i> GitHub Pages Setup Guide
+            </h4>
+            <ul class="space-y-2 text-xs sm:text-sm text-slate-300 leading-relaxed list-disc list-inside">
+                <li>Place this <code class="bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 font-mono">index.html</code> file in the main directory of your GitHub repository.</li>
+                <li>Upload your audio files (<code class="bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 font-mono">.mp3</code>, <code class="bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 font-mono">.wav</code>, etc.) into the <strong>exact same root folder</strong> as <code class="bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 font-mono">index.html</code>.</li>
+                <li>Edit the <code class="bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800 font-mono">musicFiles</code> array inside the script tag below with your exact 20 filenames.</li>
+            </ul>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-purple-900/30 py-5 text-center text-xs text-purple-400/60 mt-8">
+        <p>Teacher Day Sound Board &bull; Designed for GitHub Pages</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // =========================================================================
+        // 🎵 MUSIC FILES LIST: Place your 20 audio filenames here.
+        // Make sure these exact files are uploaded to the same folder on GitHub!
+        // =========================================================================
+        const musicFiles = [
+            'teacher_tribute.mp3',
+            'happy_teachers_day.mp3',
+            'classroom_hero.mp3',
+            'inspiration_theme.mp3',
+            'guided_light.mp3',
+            'knowledge_fountain.mp3',
+            'thank_you_song.mp3',
+            'mentor_applause.mp3',
+            'bright_minds.mp3',
+            'golden_wisdom.mp3',
+            'patience_and_care.mp3',
+            'educational_fanfare.mp3',
+            'shaping_futures.mp3',
+            'recess_joy.mp3',
+            'graduation_march.mp3',
+            'best_teacher_ever.mp3',
+            'heartbeat_of_learning.mp3',
+            'shining_star.mp3',
+            'words_of_encouragement.mp3',
+            'celebration_finale.mp3'
+        ];
+
+        let activeAudio = null;
+        let activeIndex = null;
+
+        // Formats raw filename into clean display title
+        function formatTitle(filename) {
+            let nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+            let spaced = nameWithoutExt.replace(/[-_]/g, ' ');
+            return spaced.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+        }
+
+        // Initialize soundboard UI
+        function initSoundBoard() {
+            const grid = document.getElementById('songsGrid');
+            const trackCount = document.getElementById('trackCount');
+
+            grid.innerHTML = '';
+            trackCount.textContent = `${musicFiles.length} tracks`;
+
+            musicFiles.forEach((file, index) => {
+                const title = formatTitle(file);
+                const cardId = `song-card-${index}`;
+                const statusId = `status-${index}`;
+
+                const card = document.createElement('div');
+                card.id = cardId;
+                card.className = "bg-slate-900/90 border border-purple-900/50 rounded-2xl p-4 shadow-md hover:border-purple-500/60 transition-all flex flex-col justify-between group text-slate-100";
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] font-mono bg-purple-950 text-purple-300 px-2 py-0.5 rounded border border-purple-800/60">
+                                #${index + 1}
+                            </span>
+                            <span id="${statusId}" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                                Idle
+                            </span>
+                        </div>
+                        <h4 class="font-bold text-purple-100 text-sm mb-4 line-clamp-2 group-hover:text-purple-300 transition-colors" title="${title}">
+                            ${title}
+                        </h4>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-purple-900/30">
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="playSong('${file}', ${index})" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold py-2 px-3 rounded-xl shadow transition flex items-center justify-center gap-1.5 active:scale-95">
+                                <i class="fa-solid fa-play text-[10px]"></i> Play
+                            </button>
+                            <button onclick="stopSong(${index})" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold py-2 px-3 rounded-xl border border-purple-900/30 transition flex items-center justify-center gap-1.5 active:scale-95">
+                                <i class="fa-solid fa-stop text-[10px]"></i> Stop
+                            </button>
+                        </div>
+                        <a href="${file}" download class="w-full bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-800/50 text-[11px] font-medium py-1.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-download text-[10px]"></i> Download Track
+                        </a>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Play audio continuously on loop
+        function playSong(filename, index) {
+            stopAllAudio();
+
+            activeAudio = new Audio(filename);
+            activeAudio.loop = true; // Loop continuously until explicitly stopped
+            activeIndex = index;
+
+            activeAudio.play().then(() => {
+                const title = formatTitle(filename);
+                document.getElementById('globalStatus').textContent = `Now Playing (Looping): ${title}`;
+                document.getElementById('globalStatus').className = "text-xs text-purple-300 font-bold animate-pulse";
+
+                const card = document.getElementById(`song-card-${index}`);
+                if (card) card.classList.add('card-active');
+
+                const status = document.getElementById(`status-${index}`);
+                if (status) {
+                    status.textContent = "Looping";
+                    status.className = "text-[11px] font-bold text-purple-400 uppercase tracking-wider animate-pulse";
+                }
+            }).catch(err => {
+                console.error("Playback error:", err);
+                document.getElementById('globalStatus').textContent = `File "${filename}" not found in current repository folder.`;
+                document.getElementById('globalStatus').className = "text-xs text-rose-400 font-bold";
+            });
+        }
+
+        // Stop individual song
+        function stopSong(index) {
+            if (activeIndex === index && activeAudio) {
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio = null;
+                activeIndex = null;
+            }
+            resetCardUI(index);
+            document.getElementById('globalStatus').textContent = "Ready to play sound tracks";
+            document.getElementById('globalStatus').className = "text-xs text-purple-300 font-medium";
+        }
+
+        // Master Stop All Audio
+        function stopAllAudio() {
+            if (activeAudio) {
+                activeAudio.pause();
+                activeAudio.currentTime = 0;
+                activeAudio = null;
+            }
+
+            musicFiles.forEach((_, idx) => resetCardUI(idx));
+
+            document.getElementById('globalStatus').textContent = "Ready to play sound tracks";
+            document.getElementById('globalStatus').className = "text-xs text-purple-300 font-medium";
+            activeIndex = null;
+        }
+
+        // Reset individual card styling
+        function resetCardUI(index) {
+            const card = document.getElementById(`song-card-${index}`);
+            if (card) card.classList.remove('card-active');
+
+            const status = document.getElementById(`status-${index}`);
+            if (status) {
+                status.textContent = "Idle";
+                status.className = "text-[11px] font-semibold text-slate-500 uppercase tracking-wider";
+            }
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            initSoundBoard();
+        };
+    </script>
+</body>
+</html>
