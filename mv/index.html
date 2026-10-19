@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Cinema Vault</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons for UI Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            cyan: '#00f2fe',
+                            purple: '#4facfe',
+                            accent: '#7928CA',
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 3s infinite alternate',
+                        'shake': 'shake 0.4s ease-in-out',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%': { opacity: '0.4', filter: 'blur(30px)' },
+                            '100%': { opacity: '0.8', filter: 'blur(45px)' },
+                        },
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0)' },
+                            '20%, 60%': { transform: 'translateX(-10px)' },
+                            '40%, 80%': { transform: 'translateX(10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #08090d;
+            color: #f3f4f6;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism utilities */
+        .glass-panel {
+            background: rgba(18, 20, 29, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(23, 26, 38, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        /* Ambient Glow Effect for Video */
+        #ambientCanvas {
+            position: absolute;
+            top: -10%;
+            left: -10%;
+            width: 120%;
+            height: 120%;
+            filter: blur(50px);
+            opacity: 0.65;
+            pointer-events: none;
+            z-index: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Custom range sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+            height: 6px;
+            cursor: pointer;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #00f2fe;
+            box-shadow: 0 0 10px #00f2fe;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        /* Hide native video controls overlay completely */
+        video::-webkit-media-controls {
+            display: none !important;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #08090d;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen flex flex-col justify-between selection:bg-brand-cyan selection:text-black">
+
+    <!-- ================= AUTHENTICATION SCREEN ================= -->
+    <div id="authScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#08090d] transition-all duration-700 ease-in-out">
+        <!-- Background Ambient Glow Blobs -->
+        <div class="absolute top-1/4 left-1/3 w-72 h-72 sm:w-96 sm:h-96 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-full animate-pulse-glow pointer-events-none"></div>
+        <div class="absolute bottom-1/4 right-1/3 w-72 h-72 sm:w-96 sm:h-96 bg-gradient-to-tr from-purple-600 to-pink-500 rounded-full animate-pulse-glow pointer-events-none" style="animation-delay: -1.5s;"></div>
+
+        <!-- Lock Card -->
+        <div id="authCard" class="glass-card w-full max-w-md p-8 sm:p-10 rounded-3xl shadow-2xl relative z-10 text-center flex flex-col items-center border border-white/10">
+            
+            <!-- Icon Header -->
+            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center mb-6 shadow-inner">
+                <i class="ph-bold ph-lock-key text-3xl sm:text-4xl text-cyan-400"></i>
+            </div>
+
+            <h1 class="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400 tracking-tight mb-2">Private Cinema</h1>
+            <p class="text-sm text-gray-400 mb-8">Enter access key to decrypt vault content</p>
+
+            <!-- Password Form -->
+            <form id="authForm" onsubmit="handleAuth(event)" class="w-full space-y-4">
+                <div class="relative">
+                    <input 
+                        type="password" 
+                        id="passwordInput" 
+                        placeholder="Enter password..." 
+                        class="w-full px-5 py-3.5 pr-12 rounded-xl bg-black/40 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-200 text-center text-lg tracking-wider"
+                        autocomplete="current-password"
+                        required
+                    />
+                    <button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition">
+                        <i id="eyeIcon" class="ph-bold ph-eye text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Error Message Container -->
+                <div id="errorMessage" class="hidden text-rose-400 text-xs font-medium flex items-center justify-center gap-1.5 pt-1">
+                    <i class="ph-bold ph-warning-circle text-sm"></i>
+                    <span>Incorrect passcode. Access Denied.</span>
+                </div>
+
+                <button 
+                    type="submit" 
+                    class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-semibold tracking-wide transition-all duration-200 shadow-lg shadow-cyan-500/25 active:scale-[0.98] flex items-center justify-center gap-2">
+                    <span>Unlock Vault</span>
+                    <i class="ph-bold ph-arrow-right"></i>
+                </button>
+            </form>
+
+            <div class="mt-8 text-xs text-gray-500 flex items-center gap-1.5">
+                <i class="ph-bold ph-shield-check text-cyan-400"></i>
+                <span>Encrypted GitHub Session</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MAIN CINEMA APP (HIDDEN UNTIL AUTH) ================= -->
+    <div id="mainApp" class="hidden min-h-screen flex flex-col opacity-0 transition-opacity duration-700 ease-in-out">
+        
+        <!-- Top Navigation -->
+        <header class="glass-panel sticky top-0 z-40 px-4 sm:px-8 py-4 border-b border-white/5">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <!-- App Logo -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
+                        <i class="ph-bold ph-film-strip text-xl text-cyan-400"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-white tracking-wide text-base sm:text-lg">Cinema Vault</h2>
+                        <div class="flex items-center gap-2 text-xs text-emerald-400">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                            <span>Session Active</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls/Lock Button -->
+                <div class="flex items-center gap-3">
+                    <button 
+                        onclick="lockVault()" 
+                        class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs sm:text-sm font-medium text-gray-300 hover:text-white transition flex items-center gap-2 group">
+                        <i class="ph-bold ph-lock-key text-gray-400 group-hover:text-cyan-400 transition"></i>
+                        <span class="hidden sm:inline">Lock Vault</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Video Section -->
+        <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 flex flex-col gap-6">
+            
+            <!-- Video Player Container with Ambient Backlight -->
+            <div class="relative w-full rounded-3xl overflow-hidden glass-card p-2 sm:p-4 group">
+                
+                <!-- Ambient Backlight Canvas -->
+                <canvas id="ambientCanvas"></canvas>
+
+                <!-- Player Screen Wrap -->
+                <div class="relative z-10 w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl group/player">
+                    
+                    <video 
+                        id="videoPlayer" 
+                        class="w-full h-full object-contain cursor-pointer"
+                        playsinline
+                        crossorigin="anonymous">
+                        <source id="videoSource" src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                        Your browser does not support video playback.
+                    </video>
+
+                    <!-- Big Play Button Overlay -->
+                    <div 
+                        id="bigPlayBtn" 
+                        onclick="togglePlay()" 
+                        class="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[2px] transition duration-300 cursor-pointer">
+                        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-cyan-400/90 text-black flex items-center justify-center shadow-lg shadow-cyan-400/40 transform transition group-hover/player:scale-110">
+                            <i id="bigPlayIcon" class="ph-fill ph-play text-2xl sm:text-3xl ml-1"></i>
+                        </div>
+                    </div>
+
+                    <!-- Video Controls Overlay -->
+                    <div id="controlsOverlay" class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 sm:p-6 transition-opacity duration-300 flex flex-col gap-3 z-20">
+                        
+                        <!-- Progress Bar & Time -->
+                        <div class="flex items-center gap-3">
+                            <span id="currentTime" class="text-xs text-gray-300 font-mono">00:00</span>
+                            <input 
+                                type="range" 
+                                id="seekBar" 
+                                value="0" 
+                                min="0" 
+                                max="100" 
+                                step="0.1" 
+                                class="w-full" 
+                                oninput="seekVideo(this.value)"
+                            >
+                            <span id="durationTime" class="text-xs text-gray-400 font-mono">00:00</span>
+                        </div>
+
+                        <!-- Buttons Toolbar -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2 sm:gap-4">
+                                <!-- Play/Pause -->
+                                <button onclick="togglePlay()" class="p-2 rounded-lg text-gray-200 hover:text-cyan-400 hover:bg-white/10 transition">
+                                    <i id="playIcon" class="ph-fill ph-play text-xl sm:text-2xl"></i>
+                                </button>
+                                
+                                <!-- Rewind 10s -->
+                                <button onclick="skipTime(-10)" class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition">
+                                    <i class="ph-bold ph-rewind text-lg sm:text-xl"></i>
+                                </button>
+
+                                <!-- Forward 10s -->
+                                <button onclick="skipTime(10)" class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition">
+                                    <i class="ph-bold ph-fast-forward text-lg sm:text-xl"></i>
+                                </button>
+
+                                <!-- Volume Control -->
+                                <div class="flex items-center gap-2 group/vol relative">
+                                    <button onclick="toggleMute()" class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition">
+                                        <i id="volumeIcon" class="ph-bold ph-speaker-high text-lg sm:text-xl"></i>
+                                    </button>
+                                    <input 
+                                        type="range" 
+                                        id="volumeSlider" 
+                                        min="0" 
+                                        max="1" 
+                                        step="0.05" 
+                                        value="1" 
+                                        class="w-16 sm:w-20" 
+                                        oninput="adjustVolume(this.value)"
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <!-- Ambient Toggle -->
+                                <button 
+                                    id="ambientToggle"
+                                    onclick="toggleAmbientGlow()" 
+                                    class="px-3 py-1.5 rounded-lg text-xs font-medium bg-cyan-400/10 text-cyan-400 border border-cyan-400/20 hover:bg-cyan-400/20 transition flex items-center gap-1.5"
+                                    title="Toggle ambient backlight effect">
+                                    <i class="ph-bold ph-sparkle text-sm"></i>
+                                    <span class="hidden sm:inline">Glow</span>
+                                </button>
+
+                                <!-- Fullscreen -->
+                                <button onclick="toggleFullscreen()" class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition">
+                                    <i class="ph-bold ph-corners-out text-lg sm:text-xl"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Source Switcher & Details Section -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Video Title & Details -->
+                <div class="md:col-span-2 glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-400/10 text-cyan-400 border border-cyan-400/20">Now Playing</span>
+                            <span id="videoFormatBadge" class="text-xs text-gray-400 uppercase font-mono">MP4 Video</span>
+                        </div>
+                        <h3 id="videoTitleDisplay" class="text-xl sm:text-2xl font-bold text-white mb-2">Big Buck Bunny</h3>
+                        <p class="text-sm text-gray-400 leading-relaxed">
+                            Default sample video loaded in your private vault. You can switch video streams using a URL or select a local video file from your system below.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Source Switcher Card -->
+                <div class="glass-panel p-6 rounded-2xl flex flex-col gap-4">
+                    <h4 class="font-semibold text-white flex items-center gap-2">
+                        <i class="ph-bold ph-arrows-left-right text-cyan-400"></i>
+                        <span>Change Media Source</span>
+                    </h4>
+
+                    <!-- URL Input Form -->
+                    <form onsubmit="loadCustomUrl(event)" class="space-y-2">
+                        <label class="text-xs text-gray-400 font-medium">Load Direct Video URL</label>
+                        <div class="flex gap-2">
+                            <input 
+                                type="url" 
+                                id="customUrlInput" 
+                                placeholder="https://domain.com/video.mp4" 
+                                class="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
+                            />
+                            <button type="submit" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-cyan-500 hover:text-black text-xs font-semibold text-white transition">
+                                Load
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="relative flex py-1 items-center">
+                        <div class="flex-grow border-t border-white/10"></div>
+                        <span class="flex-shrink mx-2 text-[10px] uppercase tracking-wider text-gray-500 font-mono">OR</span>
+                        <div class="flex-grow border-t border-white/10"></div>
+                    </div>
+
+                    <!-- Local File Picker -->
+                    <div>
+                        <label class="text-xs text-gray-400 font-medium block mb-2">Select Local Video File</label>
+                        <input 
+                            type="file" 
+                            id="localFileInput" 
+                            accept="video/*" 
+                            onchange="loadLocalFile(event)" 
+                            class="hidden"
+                        />
+                        <button 
+                            onclick="document.getElementById('localFileInput').click()" 
+                            class="w-full py-2.5 px-4 rounded-xl border border-dashed border-white/20 hover:border-cyan-400 bg-white/5 hover:bg-cyan-400/5 text-xs text-gray-300 hover:text-cyan-400 transition flex items-center justify-center gap-2">
+                            <i class="ph-bold ph-upload-simple text-sm"></i>
+                            <span>Choose Local File</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="py-6 border-t border-white/5 text-center text-xs text-gray-500">
+            <p>Private Cinema Vault &bull; Hostable on GitHub Pages</p>
+        </footer>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 glass-card px-4 py-3 rounded-xl border border-cyan-400/30 text-xs text-cyan-300 shadow-xl opacity-0 translate-y-4 transition-all duration-300 pointer-events-none flex items-center gap-2">
+        <i class="ph-bold ph-info text-base text-cyan-400"></i>
+        <span id="toastMsg">Vault Session Initialized</span>
+    </div>
+
+    <!-- ================= JAVASCRIPT APPLICATION LOGIC ================= -->
+    <script>
+        // Target Authentication Password
+        const TARGET_PASSWORD = "abar2010";
+
+        // UI DOM Elements
+        const authScreen = document.getElementById('authScreen');
+        const authCard = document.getElementById('authCard');
+        const passwordInput = document.getElementById('passwordInput');
+        const errorMessage = document.getElementById('errorMessage');
+        const eyeIcon = document.getElementById('eyeIcon');
+        const mainApp = document.getElementById('mainApp');
+
+        // Video DOM Elements
+        const video = document.getElementById('videoPlayer');
+        const videoSource = document.getElementById('videoSource');
+        const bigPlayBtn = document.getElementById('bigPlayBtn');
+        const bigPlayIcon = document.getElementById('bigPlayIcon');
+        const playIcon = document.getElementById('playIcon');
+        const seekBar = document.getElementById('seekBar');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeIcon = document.getElementById('volumeIcon');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const durationTimeDisplay = document.getElementById('durationTime');
+        const ambientCanvas = document.getElementById('ambientCanvas');
+        const ambientCtx = ambientCanvas.getContext('2d', { willReadFrequently: true });
+        const videoTitleDisplay = document.getElementById('videoTitleDisplay');
+
+        let isAmbientEnabled = true;
+        let ambientAnimationId = null;
+
+        // Toggle password visibility
+        function togglePasswordVisibility() {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.className = 'ph-bold ph-eye-slash text-xl text-cyan-400';
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.className = 'ph-bold ph-eye text-xl';
+            }
+        }
+
+        // Authenticate passcode
+        function handleAuth(e) {
+            e.preventDefault();
+            const inputVal = passwordInput.value;
+
+            if (inputVal === TARGET_PASSWORD) {
+                // Correct Password
+                errorMessage.classList.add('hidden');
+                
+                // Animate Auth Screen Out
+                authScreen.classList.add('opacity-0', 'scale-105', 'pointer-events-none');
+                
+                setTimeout(() => {
+                    authScreen.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                    setTimeout(() => {
+                        mainApp.classList.remove('opacity-0');
+                        showToast("Vault Unlocked Successfully!");
+                    }, 50);
+                }, 700);
+
+            } else {
+                // Incorrect Password
+                errorMessage.classList.remove('hidden');
+                authCard.classList.remove('animate-shake');
+                // Trigger reflow for animation restart
+                void authCard.offsetWidth;
+                authCard.classList.add('animate-shake');
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        }
+
+        // Lock / Logout Vault
+        function lockVault() {
+            video.pause();
+            mainApp.classList.add('opacity-0');
+            setTimeout(() => {
+                mainApp.classList.add('hidden');
+                authScreen.classList.remove('hidden');
+                passwordInput.value = '';
+                errorMessage.classList.add('hidden');
+                setTimeout(() => {
+                    authScreen.classList.remove('opacity-0', 'scale-105', 'pointer-events-none');
+                    showToast("Vault Locked");
+                }, 50);
+            }, 500);
+        }
+
+        // Video Controls Logic
+        function togglePlay() {
+            if (video.paused || video.ended) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        }
+
+        video.addEventListener('play', () => {
+            playIcon.className = 'ph-fill ph-pause text-xl sm:text-2xl';
+            bigPlayIcon.className = 'ph-fill ph-pause text-2xl sm:text-3xl';
+            bigPlayBtn.classList.add('opacity-0', 'pointer-events-none');
+            renderAmbientGlow();
+        });
+
+        video.addEventListener('pause', () => {
+            playIcon.className = 'ph-fill ph-play text-xl sm:text-2xl';
+            bigPlayIcon.className = 'ph-fill ph-play text-2xl sm:text-3xl ml-1';
+            bigPlayBtn.classList.remove('opacity-0', 'pointer-events-none');
+            if (ambientAnimationId) cancelAnimationFrame(ambientAnimationId);
+        });
+
+        // Time updates & Seekbar
+        video.addEventListener('timeupdate', () => {
+            if (!isNaN(video.duration)) {
+                const progress = (video.currentTime / video.duration) * 100;
+                seekBar.value = progress;
+                currentTimeDisplay.textContent = formatTime(video.currentTime);
+                durationTimeDisplay.textContent = formatTime(video.duration);
+            }
+        });
+
+        function seekVideo(val) {
+            if (!isNaN(video.duration)) {
+                const seekTo = (val / 100) * video.duration;
+                video.currentTime = seekTo;
+            }
+        }
+
+        function skipTime(seconds) {
+            video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
+        }
+
+        // Volume logic
+        function adjustVolume(val) {
+            video.volume = val;
+            video.muted = (val == 0);
+            updateVolumeIcon();
+        }
+
+        function toggleMute() {
+            video.muted = !video.muted;
+            if (video.muted) {
+                volumeSlider.value = 0;
+            } else {
+                volumeSlider.value = video.volume || 1;
+            }
+            updateVolumeIcon();
+        }
+
+        function updateVolumeIcon() {
+            if (video.muted || video.volume === 0) {
+                volumeIcon.className = 'ph-bold ph-speaker-x text-lg sm:text-xl text-rose-400';
+            } else if (video.volume < 0.5) {
+                volumeIcon.className = 'ph-bold ph-speaker-low text-lg sm:text-xl';
+            } else {
+                volumeIcon.className = 'ph-bold ph-speaker-high text-lg sm:text-xl';
+            }
+        }
+
+        // Time Formatter (seconds -> MM:SS)
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Fullscreen toggle
+        function toggleFullscreen() {
+            const container = video.parentElement;
+            if (!document.fullscreenElement) {
+                if (container.requestFullscreen) container.requestFullscreen();
+                else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // Ambient Backlight Effect Engine
+        function renderAmbientGlow() {
+            if (!isAmbientEnabled || video.paused || video.ended) return;
+
+            try {
+                if (ambientCanvas.width !== 64 || ambientCanvas.height !== 36) {
+                    ambientCanvas.width = 64;
+                    ambientCanvas.height = 36;
+                }
+                ambientCtx.drawImage(video, 0, 0, ambientCanvas.width, ambientCanvas.height);
+            } catch (err) {
+                // Cross-origin fallback handling
+            }
+
+            ambientAnimationId = requestAnimationFrame(renderAmbientGlow);
+        }
+
+        function toggleAmbientGlow() {
+            isAmbientEnabled = !isAmbientEnabled;
+            const btn = document.getElementById('ambientToggle');
+            if (isAmbientEnabled) {
+                ambientCanvas.style.opacity = '0.65';
+                btn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-cyan-400/10 text-cyan-400 border border-cyan-400/20 hover:bg-cyan-400/20 transition flex items-center gap-1.5';
+                renderAmbientGlow();
+                showToast("Ambient Backlight: Enabled");
+            } else {
+                ambientCanvas.style.opacity = '0';
+                btn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition flex items-center gap-1.5';
+                if (ambientAnimationId) cancelAnimationFrame(ambientAnimationId);
+                showToast("Ambient Backlight: Disabled");
+            }
+        }
+
+        // Custom Media Source Loading
+        function loadCustomUrl(e) {
+            e.preventDefault();
+            const urlInput = document.getElementById('customUrlInput');
+            const url = urlInput.value.trim();
+
+            if (url) {
+                videoSource.src = url;
+                video.load();
+                videoTitleDisplay.textContent = url.split('/').pop().split('?')[0] || "Custom Stream";
+                showToast("Loaded custom video URL");
+                video.play().catch(() => {});
+                urlInput.value = '';
+            }
+        }
+
+        function loadLocalFile(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const fileURL = URL.createObjectURL(file);
+                videoSource.src = fileURL;
+                video.load();
+                videoTitleDisplay.textContent = file.name;
+                showToast(`Loaded local file: ${file.name}`);
+                video.play().catch(() => {});
+            }
+        }
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.textContent = msg;
+            toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // Initial setup on window load
+        window.onload = function() {
+            passwordInput.focus();
+        };
+    </script>
+</body>
+</html>
